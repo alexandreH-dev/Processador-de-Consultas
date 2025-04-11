@@ -1,35 +1,36 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from "react";
+import { SqlInput } from "./components/SqlInput";
+import { parseSQL } from "./core/parser";
+import { toRelationalAlgebra } from "./core/relationalAlgebra";
+import { ParsedQuery } from "./types/Query";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [relAlg, setRelAlg] = useState("");
+
+  const handleQuery = (sql: string) => {
+    const parsed = parseSQL(sql) as ParsedQuery;
+    const algebra = toRelationalAlgebra(parsed);
+    setRelAlg(algebra);
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div
+      style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '800px'
+      }}
+    >
+      <h1 className="text-xl font-bold p-4">Processador de Consultas SQL</h1>
+      <SqlInput onQuery={handleQuery} />
+      <div className="p-4">
+        <h2 className="font-semibold">Álgebra Relacional:</h2>
+        <pre>{relAlg}</pre>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </div>
+  );
 }
 
-export default App
+export default App;
