@@ -8,12 +8,15 @@ import { OperatorNode } from "./types/Operator";
 import { buildOperatorGraph } from "./core/operatorGraph";
 import { processQuery } from "./core/queryProcessor";
 import { OperatorGraph } from "./components/OperatorGraph";
+import { optimizeQuery } from "./core/optimizer";
+
 
 function App() {
   const [relAlg, setRelAlg] = useState("");
+  const [relAlgOptimized, setRelAlgOptimized] = useState("");
+  const [graphOptimized, setGraphOptimized] = useState<OperatorNode[]>([]);
+  const [executionOptimized, setExecutionOptimized] = useState<string[]>([]);
   const [error, setError] = useState("");
-  const [graph, setGraph] = useState<OperatorNode[]>([]);
-  const [executionOrder, setExecutionOrder] = useState<string[]>([]);
 
   const handleQuery = (sql: string) => {
     try {
@@ -21,11 +24,14 @@ function App() {
       const algebra = toRelationalAlgebra(parsed);
       setRelAlg(algebra);
 
-      const graphBuilt = buildOperatorGraph(parsed);
-      setGraph(graphBuilt);
+      // 🟢 Otimização
+      const optimized = optimizeQuery(parsed);
+      const optimizedAlg = toRelationalAlgebra(optimized);
+      setRelAlgOptimized(optimizedAlg);
 
-      const execution = processQuery(graphBuilt);
-      setExecutionOrder(execution);
+      const optimizedGraph = buildOperatorGraph(optimized);
+      setGraphOptimized(optimizedGraph);
+      setExecutionOptimized(processQuery(optimizedGraph));
 
       setError("");
     } catch (e) {
@@ -53,12 +59,15 @@ function App() {
         <h2 className="font-semibold">Álgebra Relacional:</h2>
         <pre>{relAlg}</pre>
 
-        <h2 className="font-semibold mt-4">Grafo de Operadores:</h2>
-        <OperatorGraph nodes={graph} />
+        <h2 className="font-semibold mt-8">Álgebra Relacional Otimizada:</h2>
+        <pre>{relAlgOptimized}</pre>
 
-        <h2 className="font-semibold mt-4">Ordem de Execução:</h2>
+        <h2 className="font-semibold mt-4">Grafo Otimizado:</h2>
+        <OperatorGraph nodes={graphOptimized} />
+
+        <h2 className="font-semibold mt-4">Ordem de Execução (Otimizada):</h2>
         <ul>
-          {executionOrder.map((step, index) => (
+          {executionOptimized.map((step, index) => (
             <li key={index}>{index + 1}. {step}</li>
           ))}
         </ul>
