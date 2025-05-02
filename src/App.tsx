@@ -21,20 +21,26 @@ function App() {
   const handleQuery = (sql: string) => {
     try {
       const parsed = parseSQL(sql) as ParsedQuery;
+  
+      // 🛠️ FORÇA o "from" a virar objeto
+      if (typeof parsed.from === "string") {
+        parsed.from = { table: parsed.from };
+      }
+  
       const algebra = toRelationalAlgebra(parsed);
       setRelAlg(algebra);
-
-      // 🟢 Otimização
+  
       const optimized = optimizeQuery(parsed);
       const optimizedAlg = toRelationalAlgebra(optimized);
       setRelAlgOptimized(optimizedAlg);
-
+  
       const optimizedGraph = buildOperatorGraph(optimized);
       setGraphOptimized(optimizedGraph);
       setExecutionOptimized(processQuery(optimizedGraph));
-
+  
       setError("");
     } catch (e) {
+      console.error("🔥 ERRO DETALHADO:", e);
       if (e instanceof Error) {
         setError(e.message);
       }
@@ -68,7 +74,9 @@ function App() {
         <h2 className="font-semibold mt-4">Ordem de Execução (Otimizada):</h2>
         <ul>
           {executionOptimized.map((step, index) => (
-            <li key={index}>{index + 1}. {step}</li>
+            <li key={index}>
+              {index + 1}. {typeof step === "object" ? JSON.stringify(step) : step}
+            </li>
           ))}
         </ul>
       </div>

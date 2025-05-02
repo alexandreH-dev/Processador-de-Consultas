@@ -3,9 +3,16 @@ export interface JoinClause {
   condition: string;
 }
 
-export interface ParsedQuery {
+export type ParsedQuery = {
   select: string[];
-  from: string;
+  from: {
+    table: string;
+    where?: string;
+  };
+  joins: {
+    table: string;
+    condition: string;
+    where?: string;
+  }[];
   where?: string;
-  joins: JoinClause[];
-}
+};

@@ -1,4 +1,4 @@
-import { ReactFlow, Background, Controls, MiniMap } from 'reactflow';
+import { ReactFlow, Background, Controls} from 'reactflow';
 import 'reactflow/dist/style.css';
 import { OperatorNode } from '../types/Operator';
 
@@ -32,7 +32,6 @@ export const OperatorGraph = ({ nodes }: Props) => {
       >
         <Background />
         <Controls />
-        <MiniMap />
       </ReactFlow>
     </div>
   );

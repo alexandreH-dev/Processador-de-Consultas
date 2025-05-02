@@ -1,20 +1,35 @@
 import { ParsedQuery } from "../types/Query";
 
 
-export function toRelationalAlgebra(parsed: ParsedQuery): string {
-  let result = "";
 
-  if (parsed.joins.length) {
-    result = parsed.joins.reduce(
-      (acc, join) => `(${acc} ⨝ ${join.condition} ${join.table})`,
-      parsed.from
-    );
-  } else {
-    result = parsed.from;
+export function toRelationalAlgebra(parsed: ParsedQuery): string {
+  //console.log("🧠 DEBUG parsed.from =", parsed.from)
+
+  // FROM com seleção local
+  let base = parsed.from.table;
+  if (parsed.from.where) {
+    base = `σ ${parsed.from.where} (${base})`;
   }
 
-  if (parsed.where) result = `σ ${parsed.where} (${result})`;
-  if (parsed.select) result = `π ${parsed.select.join(", ")} (${result})`;
+  // JOINs com seleção local
+  const joinPart = parsed.joins.reduce((acc, join) => {
+    let joinTable = join.table;
+    if (join.where) {
+      joinTable = `σ ${join.where} (${join.table})`;
+    }
+    return `(${acc} ⨝ ${join.condition} ${joinTable})`;
+  }, base);
 
-  return result;
+  // Seleção global
+  let result = joinPart;
+  if (parsed.where) {
+    result = `σ ${parsed.where} (${result})`;
+  }
+
+  // Projeção final
+  if (parsed.select.length) {
+    result = `π ${parsed.select.join(", ")} (${result})`;
+  }
+
+  return String(result);
 }

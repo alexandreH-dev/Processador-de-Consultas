@@ -6,9 +6,9 @@ export function buildOperatorGraph(parsed: ParsedQuery): OperatorNode[] {
 
   // Cria nó da tabela principal
   nodes.push({
-    id: parsed.from,
+    id: parsed.from.table,
     type: "Table",
-    label: parsed.from,
+    label: parsed.from.table,
     inputs: [],
   });
 
@@ -18,7 +18,7 @@ export function buildOperatorGraph(parsed: ParsedQuery): OperatorNode[] {
       id: `join${index}`,
       type: "Join",
       label: join.condition,
-      inputs: [parsed.from, join.table],
+      inputs: [parsed.from.table, join.table],
     });
     nodes.push({
       id: join.table,
@@ -34,7 +34,9 @@ export function buildOperatorGraph(parsed: ParsedQuery): OperatorNode[] {
       id: "selection",
       type: "Selection",
       label: parsed.where,
-      inputs: parsed.joins.length > 0 ? [`join${parsed.joins.length - 1}`] : [parsed.from],
+      inputs: parsed.joins.length > 0
+        ? [`join${parsed.joins.length - 1}`]
+        : [parsed.from.table],
     });
   }
 

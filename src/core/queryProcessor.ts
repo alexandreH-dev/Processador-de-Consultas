@@ -2,7 +2,6 @@ import { OperatorNode } from "../types/Operator";
 
 export function processQuery(nodes: OperatorNode[]): string[] {
   const executed: string[] = [];
-
   const nodeMap = new Map(nodes.map(node => [node.id, node]));
 
   function execute(nodeId: string) {
@@ -24,5 +23,21 @@ export function processQuery(nodes: OperatorNode[]): string[] {
     execute(startNode.id);
   }
 
-  return executed.map(id => nodeMap.get(id)?.label || id);
+  // 🧠 Traduzir operação com símbolo
+  return executed.map(id => {
+    const node = nodeMap.get(id);
+    if (!node) return id;
+    switch (node.type) {
+      case "Selection":
+        return `σ ${node.label}`;
+      case "Join":
+        return `⨝ ${node.label}`;
+      case "Projection":
+        return `π ${node.label}`;
+      case "Table":
+        return node.label;
+      default:
+        return `${node.type}: ${node.label}`;
+    }
+  });
 }
