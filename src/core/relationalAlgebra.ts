@@ -3,7 +3,6 @@ import { ParsedQuery } from "../types/Query";
 
 
 export function toRelationalAlgebra(parsed: ParsedQuery): string {
-  //console.log("🧠 DEBUG parsed.from =", parsed.from)
 
   // FROM com seleção local
   let base = parsed.from.table;
