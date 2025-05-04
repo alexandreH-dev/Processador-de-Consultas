@@ -12,18 +12,19 @@ export function optimizeQuery(parsed: ParsedQuery): ParsedQuery {
 
   if (parsed.where) {
     const conditions = parsed.where.split(/\s+and\s+/i).map(c => c.trim());
-
     const remainingConditions: string[] = [];
 
     for (const cond of conditions) {
-      if (/cliente\./i.test(cond)) {
+      // ✅ Se a condição é do FROM principal (ex: Produto.Preco > 100)
+      if (new RegExp(`^${from.table}\\.`, "i").test(cond)) {
         optimized.from.where = optimized.from.where
           ? `${optimized.from.where} AND ${cond}`
           : cond;
+
+      // ✅ Se a condição está associada a alguma tabela de JOIN
       } else {
-        // Tenta encontrar o JOIN certo para associar
         const matchingJoin = optimized.joins.find(j =>
-          new RegExp(`${j.table}\\.`, "i").test(cond)
+          new RegExp(`^${j.table}\\.`, "i").test(cond)
         );
 
         if (matchingJoin) {
@@ -31,22 +32,23 @@ export function optimizeQuery(parsed: ParsedQuery): ParsedQuery {
             ? `${matchingJoin.where} AND ${cond}`
             : cond;
         } else {
+          // ❗ Condições globais (sem tabela clara) ficam na seleção global
           remainingConditions.push(cond);
         }
       }
     }
 
-    // As que não se encaixaram continuam na WHERE global
+    // Se restaram condições que não foram associadas a FROM ou JOINs, mantêm-se como seleção global
     optimized.where = remainingConditions.join(" AND ");
   }
 
-  // Heurística 2: reordenar JOINs baseado nas condições
+  // ✅ Heurística: ordenar JOINs com base no número de ocorrências no WHERE
   if (optimized.joins.length && parsed.where) {
     const whereConds = parsed.where.toLowerCase();
 
     optimized.joins = optimized.joins.sort((a, b) => {
-      const aScore = (whereConds.match(new RegExp(`${a.table}\\.`,"g")) || []).length;
-      const bScore = (whereConds.match(new RegExp(`${b.table}\\.`,"g")) || []).length;
+      const aScore = (whereConds.match(new RegExp(`${a.table.toLowerCase()}\\.`, "g")) || []).length;
+      const bScore = (whereConds.match(new RegExp(`${b.table.toLowerCase()}\\.`, "g")) || []).length;
       return bScore - aScore;
     });
   }

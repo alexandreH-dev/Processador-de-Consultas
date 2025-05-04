@@ -1,4 +1,4 @@
-import { ReactFlow, Background, Controls} from 'reactflow';
+import { ReactFlow, Background, Controls } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { OperatorNode } from '../types/Operator';
 
@@ -7,27 +7,29 @@ type Props = {
 };
 
 export const OperatorGraph = ({ nodes }: Props) => {
-  const elements = nodes.map((node) => ({
+  // Posicionamento simples vertical
+  const verticalSpacing = 100;
+  const reactFlowNodes = nodes.map((node, index) => ({
     id: node.id,
     data: { label: node.label },
-    position: { x: Math.random() * 250, y: Math.random() * 250 },
-    type: "default",
+    position: { x: 250, y: index * verticalSpacing },
+    type: 'default',
   }));
 
-  const edges = nodes.flatMap((node) =>
+  const reactFlowEdges = nodes.flatMap((node) =>
     node.inputs.map((input) => ({
       id: `e-${input}-${node.id}`,
       source: input,
       target: node.id,
-      type: "smoothstep",
+      type: 'smoothstep',
     }))
   );
 
   return (
     <div style={{ height: 500 }}>
       <ReactFlow
-        nodes={elements}
-        edges={edges}
+        nodes={reactFlowNodes}
+        edges={reactFlowEdges}
         fitView
       >
         <Background />
