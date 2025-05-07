@@ -1,58 +1,86 @@
 import { ParsedQuery } from "../types/Query";
 import { OperatorNode } from "../types/Operator";
 
+let nodeCount = 0;
+const newId = () => `n${nodeCount++}`;
+
 export function buildOperatorGraph(parsed: ParsedQuery): OperatorNode[] {
   const nodes: OperatorNode[] = [];
+  const tableOutputs: Record<string, string> = {};
 
-  const tableNodes: { [tableName: string]: string } = {};
-
-  // 1. FROM principal (com seleção local se houver)
-  const fromTable = parsed.from.table;
-  let fromOutputId = fromTable;
+  // 1. FROM principal
+  const baseTable = parsed.from.table;
+  const fromBaseId = baseTable;
 
   nodes.push({
-    id: fromTable,
+    id: fromBaseId,
     type: "Table",
-    label: fromTable,
+    label: baseTable,
     inputs: [],
   });
 
+  let fromCurrentId = fromBaseId;
+
   if (parsed.from.where) {
-    const selectionId = `selection_${fromTable}`;
+    const selId = newId();
     nodes.push({
-      id: selectionId,
+      id: selId,
       type: "Selection",
       label: parsed.from.where,
-      inputs: [fromTable],
+      inputs: [fromCurrentId],
     });
-    fromOutputId = selectionId;
+    fromCurrentId = selId;
   }
 
-  tableNodes[fromTable] = fromOutputId;
+  const fromProjAttrs = getAttributesUsedFor(baseTable, parsed);
+  if (fromProjAttrs.length) {
+    const projId = newId();
+    nodes.push({
+      id: projId,
+      type: "Projection",
+      label: fromProjAttrs.join(", "),
+      inputs: [fromCurrentId],
+    });
+    fromCurrentId = projId;
+  }
 
-  // 2. JOINs (com seleção local se houver)
-  let lastJoinId: string = fromOutputId;
+  tableOutputs[baseTable] = fromCurrentId;
+
+  // 2. JOINs com seleção e projeção local
+  let currentJoinId = fromCurrentId;
 
   parsed.joins.forEach((join, index) => {
-    const joinTable = join.table;
-    let joinTableOutputId = joinTable;
-
+    const tableId = join.table;
     nodes.push({
-      id: joinTable,
+      id: tableId,
       type: "Table",
-      label: joinTable,
+      label: tableId,
       inputs: [],
     });
 
+    let tableCurrentId = tableId;
+
     if (join.where) {
-      const selectionId = `selection_${joinTable}`;
+      const selId = newId();
       nodes.push({
-        id: selectionId,
+        id: selId,
         type: "Selection",
         label: join.where,
-        inputs: [joinTable],
+        inputs: [tableCurrentId],
       });
-      joinTableOutputId = selectionId;
+      tableCurrentId = selId;
+    }
+
+    const projAttrs = getAttributesUsedFor(tableId, parsed);
+    if (projAttrs.length) {
+      const projId = newId();
+      nodes.push({
+        id: projId,
+        type: "Projection",
+        label: projAttrs.join(", "),
+        inputs: [tableCurrentId],
+      });
+      tableCurrentId = projId;
     }
 
     const joinId = `join${index}`;
@@ -60,39 +88,55 @@ export function buildOperatorGraph(parsed: ParsedQuery): OperatorNode[] {
       id: joinId,
       type: "Join",
       label: join.condition,
-      inputs: [lastJoinId, joinTableOutputId],
+      inputs: [currentJoinId, tableCurrentId],
     });
 
-    lastJoinId = joinId;
+    currentJoinId = joinId;
+    tableOutputs[tableId] = tableCurrentId;
   });
 
-  // 3. Seleção global (restante)
-  let lastOpId = lastJoinId;
-
+  // 3. Seleção global (WHERE residual)
+  let finalOpId = currentJoinId;
   if (parsed.where) {
-    const globalSelId = "selection_global";
+    const selId = newId();
     nodes.push({
-      id: globalSelId,
+      id: selId,
       type: "Selection",
       label: parsed.where,
-      inputs: [lastJoinId],
+      inputs: [finalOpId],
     });
-    lastOpId = globalSelId;
+    finalOpId = selId;
   }
 
   // 4. Projeção final
-  if (parsed.select && parsed.select.length > 0) {
-    nodes.push({
-      id: "projection",
-      type: "Projection",
-      label: parsed.select.join(", "),
-      inputs: [lastOpId],
-    });
-  }
-
-  // Debug: logar estrutura no console
-  console.log("🔍 buildOperatorGraph - tableNodes:", tableNodes);
-  console.log("🧠 buildOperatorGraph - nodes:", nodes);
+  const projId = newId();
+  nodes.push({
+    id: projId,
+    type: "Projection",
+    label: parsed.select.join(", "),
+    inputs: [finalOpId],
+  });
 
   return nodes;
+}
+
+// 🧩 Utilitário: extrai atributos usados por tabela
+function getAttributesUsedFor(table: string, parsed: ParsedQuery): string[] {
+  const used = new Set<string>();
+  const lowerTable = table.toLowerCase();
+
+  parsed.select.forEach(sel => {
+    const [tbl, attr] = sel.split(".");
+    if (tbl?.toLowerCase() === lowerTable) used.add(attr);
+  });
+
+  parsed.joins.forEach(j => {
+    const matches = j.condition.match(/\b(\w+)\.(\w+)\b/g);
+    matches?.forEach(m => {
+      const [tbl, attr] = m.split(".");
+      if (tbl?.toLowerCase() === lowerTable) used.add(attr);
+    });
+  });
+
+  return Array.from(used);
 }
